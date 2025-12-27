@@ -175,3 +175,37 @@
     (asserts! (>= stake-duration (var-get min-stake-period))
       ERR_TOO_EARLY_TO_UNSTAKE
     )
+
+    ;; Claim rewards first if available
+    (try! (claim-rewards))
+    ;; Update stake record
+    (if (> staked-amount amount)
+      (map-set stakes { staker: tx-sender } {
+        amount: (- staked-amount amount),
+        staked-at: stacks-block-height,
+      })
+      (map-delete stakes { staker: tx-sender })
+    )
+    ;; Update total staked - amount has been validated above
+    (var-set total-staked (- (var-get total-staked) amount))
+    ;; Transfer tokens back to the staker
+    (as-contract (try! (contract-call? 'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token
+      transfer amount (as-contract tx-sender) tx-sender none
+    )))
+    (ok true)
+  )
+)
+
+;; Read-only Interface Functions
+
+(define-read-only (get-stake-info (staker principal))
+  (map-get? stakes { staker: staker })
+)
+
+(define-read-only (get-rewards-claimed (staker principal))
+  (map-get? rewards-claimed { staker: staker })
+)
+
+(define-read-only (get-reward-rate)
+  (var-get reward-rate)
+)
