@@ -39,3 +39,53 @@
 (define-data-var reward-pool uint u0)
 (define-data-var min-stake-period uint u1440) ;; Minimum stake period in blocks (approx. 10 days on mainnet)
 (define-data-var total-staked uint u0)
+
+;; Administrative Functions
+
+(define-data-var contract-owner principal tx-sender)
+
+(define-read-only (get-contract-owner)
+  (var-get contract-owner)
+)
+
+(define-public (set-contract-owner (new-owner principal))
+  (begin
+    (asserts! (is-eq tx-sender (var-get contract-owner)) ERR_NOT_AUTHORIZED)
+    ;; Since this is a principal type, no additional validation needed but adding a check
+    ;; to acknowledge the input was handled by validating the sender authorization
+    (asserts! (not (is-eq new-owner (var-get contract-owner))) (ok true))
+    (ok (var-set contract-owner new-owner))
+  )
+)
+
+(define-public (set-reward-rate (new-rate uint))
+  (begin
+    (asserts! (is-eq tx-sender (var-get contract-owner)) ERR_NOT_AUTHORIZED)
+    (asserts! (< new-rate u1000) ERR_INVALID_REWARD_RATE) ;; Cannot be more than 100%
+    (ok (var-set reward-rate new-rate))
+  )
+)
+
+(define-public (set-min-stake-period (new-period uint))
+  (begin
+    (asserts! (is-eq tx-sender (var-get contract-owner)) ERR_NOT_AUTHORIZED)
+    ;; Add some basic validation for the new-period
+    (asserts! (> new-period u0) ERR_INVALID_REWARD_RATE)
+    (ok (var-set min-stake-period new-period))
+  )
+)
+
+;; Add funds to the reward pool
+(define-public (add-to-reward-pool (amount uint))
+  (begin
+    ;; Validate amount is greater than zero
+    (asserts! (> amount u0) ERR_ZERO_STAKE)
+    ;; Transfer sBTC to the contract
+    (try! (contract-call? 'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token
+      transfer amount tx-sender (as-contract tx-sender) none
+    ))
+    ;; Update reward pool - now the amount has been validated
+    (var-set reward-pool (+ (var-get reward-pool) amount))
+    (ok true)
+  )
+)
