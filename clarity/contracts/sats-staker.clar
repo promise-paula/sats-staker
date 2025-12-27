@@ -175,7 +175,6 @@
     (asserts! (>= stake-duration (var-get min-stake-period))
       ERR_TOO_EARLY_TO_UNSTAKE
     )
-
     ;; Claim rewards first if available
     (try! (claim-rewards))
     ;; Update stake record
@@ -208,4 +207,24 @@
 
 (define-read-only (get-reward-rate)
   (var-get reward-rate)
+)
+
+(define-read-only (get-min-stake-period)
+  (var-get min-stake-period)
+)
+
+(define-read-only (get-reward-pool)
+  (var-get reward-pool)
+)
+
+(define-read-only (get-total-staked)
+  (var-get total-staked)
+)
+
+;; Calculate APY for the current reward rate
+(define-read-only (get-current-apy)
+  (let ((rate-basis (var-get reward-rate)))
+    (* rate-basis u100)
+    ;; convert basis points to percentage (e.g., 5 basis points = 0.5%)
+  )
 )
